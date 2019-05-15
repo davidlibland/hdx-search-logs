@@ -10,10 +10,15 @@ lazy val root = (project in file(".")).
     resolvers += Resolver.mavenLocal,
     name := "hdx-search-logs",
     libraryDependencies ++= Seq(
+      // Core libraries:
       kafkaStreams,
+      // Logging:
       sl4jApi,
       sl4jSimple,
+      // HDx:
       scalapb,
-      //      scalaTest % Test
+      // Testing:
+      scalaTest % Test,
+      mockedStreams % Test
     )
   )

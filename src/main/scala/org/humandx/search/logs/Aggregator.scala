@@ -1,13 +1,14 @@
 package org.humandx.search.logs
 
+import java.time.Duration
 import java.util.Properties
-import java.util.concurrent.TimeUnit
 
-import org.apache.kafka.streams.kstream.Materialized
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala._
+import org.apache.kafka.streams.Topology
 import org.apache.kafka.streams.scala.kstream._
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
+
 
 object Aggregator extends App {
   import Serdes._
@@ -19,18 +20,26 @@ object Aggregator extends App {
     p
   }
 
-  val builder: StreamsBuilder = new StreamsBuilder
-  val textLines: KStream[String, String] = builder.stream[String, String]("TextLinesTopic")
-  val wordCounts: KTable[String, Long] = textLines
-    .flatMapValues(textLine => textLine.toLowerCase.split("\\W+"))
-    .groupBy((_, word) => word)
-    .count()
-  wordCounts.toStream.to("WordsWithCountsTopic")
+  run()
 
-  val streams: KafkaStreams = new KafkaStreams(builder.build(), props)
-  streams.start()
+  def createTopology(): Topology = {
+    val builder: StreamsBuilder = new StreamsBuilder
+    val textLines: KStream[String, String] = builder.stream[String, String]("TextLinesTopic")
+    val wordCounts: KTable[String, Long] = textLines
+      .flatMapValues(textLine => textLine.toLowerCase.split("\\W+"))
+      .groupBy((_, word) => word)
+      .count()
+    wordCounts.toStream.to("WordsWithCountsTopic")
 
-  sys.ShutdownHookThread {
-    streams.close(10, TimeUnit.SECONDS)
+    builder.build()
+  }
+
+  private def run(): Unit = {
+    val topology = createTopology()
+    val streams: KafkaStreams = new KafkaStreams(topology, props)
+    streams.start()
+    sys.ShutdownHookThread {
+      streams.close(Duration.ofSeconds(10))
+    }
   }
 }
